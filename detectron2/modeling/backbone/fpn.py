@@ -150,7 +150,8 @@ class FPN(Backbone):
             if idx > 0:
                 features = self.in_features[-idx - 1]
                 features = bottom_up_features[features]
-                top_down_features = F.interpolate(prev_features, scale_factor=2.0, mode="nearest")
+                # top_down_features = F.interpolate(prev_features, scale_factor=2.0, mode="nearest")
+                top_down_features = F.interpolate(prev_features, size=features.shape[-2:], mode="nearest")
                 lateral_features = lateral_conv(features)
                 prev_features = lateral_features + top_down_features
                 if self._fuse_type == "avg":
@@ -220,6 +221,23 @@ class LastLevelP6P7(nn.Module):
         p7 = self.p7(F.relu(p6))
         return [p6, p7]
 
+class LastLevelP6(nn.Module):
+    """
+    This module is used in RetinaNet to generate extra layers, P6 and P7 from
+    C5 feature.
+    """
+
+    def __init__(self, in_channels, out_channels, in_feature="res5"):
+        super().__init__()
+        self.num_levels = 1
+        self.in_feature = in_feature
+        self.p6 = nn.Conv2d(in_channels, out_channels, 3, 2, 1)
+        for module in [self.p6, ]:
+            weight_init.c2_xavier_fill(module)
+
+    def forward(self, c5):
+        p6 = self.p6(c5)
+        return [p6]
 
 @BACKBONE_REGISTRY.register()
 def build_resnet_fpn_backbone(cfg, input_shape: ShapeSpec):
